@@ -57,6 +57,34 @@ impl<'a> Request<'a> {
         }
     }
 
+    /// Creates a "multicall" request that will perform multiple requests at once
+    /// to a specified endpoint.
+    /// 
+    /// This requires that the server supports the custom multicall method.
+    #[allow(deprecated)]
+    pub fn new_multicall_with_name<'r, I>(name: &'a str, requests: I) -> Self
+    where
+        'a: 'r,
+        I: IntoIterator<Item = &'r Request<'a>>,
+    {
+        Request {
+            name,
+            args: vec![Value::Array(
+                requests
+                    .into_iter()
+                    .map(|req| {
+                        let mut multicall_struct: BTreeMap<String, Value> = BTreeMap::new();
+
+                        multicall_struct.insert("methodName".into(), req.name.into());
+                        multicall_struct.insert("params".into(), Value::Array(req.args.clone()));
+
+                        Value::Struct(multicall_struct)
+                    })
+                    .collect(),
+            )],
+        }
+    }
+
     /// Appends an argument to be passed to the current list of arguments.
     pub fn arg<T: Into<Value>>(mut self, value: T) -> Self {
         self.args.push(value.into());
